@@ -42,9 +42,9 @@ COZE_API_TOKEN=扣子令牌 COZE_BOT_ID=智能体_ID python agent_chat.py
 在下面的示例中，分别运行了三个命令:
 
 - 我的电脑目前有多少电量
-- 当前目录有哪些文件呢
-- 用一句话总结 main.py 的代码功能
+- 用一句话总结当前项目代码的主要作用
 
 调用了三个端插件来完成了电脑信息分析和文件总结的任务。
 
-![](./screenshot.png)
+![](./screenshot-1.png)
+![](./screenshot-2.png)
