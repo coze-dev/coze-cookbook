@@ -1,0 +1,98 @@
+info:
+    description: 端插件 example
+    title: 端插件 example
+    version: v1
+openapi: 3.0.1
+paths:
+    /list_files:
+        post:
+            operationId: list_files
+            parameters:
+                - description: 文件夹路径，当前目录以 . 标识
+                  in: query
+                  name: dir
+                  required: true
+                  schema:
+                    default: .
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                properties:
+                                    files:
+                                        description: 文件信息
+                                        items:
+                                            properties:
+                                                name:
+                                                    description: 文件或者文件夹名称
+                                                    type: string
+                                                type:
+                                                    description: 文件 file 或者文件夹 dir
+                                                    type: string
+                                            type: object
+                                        type: array
+                                type: object
+                    description: new desc
+                default:
+                    description: ""
+            summary: 列出文件列表
+            x-functionName: list_files
+    /read_file:
+        post:
+            operationId: read_file
+            parameters:
+                - description: 文件路径
+                  in: query
+                  name: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                properties:
+                                    content:
+                                        description: 文件内容
+                                        type: string
+                                type: object
+                    description: new desc
+                default:
+                    description: ""
+            summary: 读取文件
+            x-functionName: read_file
+    /screenshot:
+        post:
+            operationId: screenshot
+            requestBody:
+                content: {}
+            responses:
+                "200":
+                    content:
+                        application/json:
+                            schema:
+                                properties:
+                                    image:
+                                        description: 截图图片
+                                        format: image_url
+                                        type: string
+                                        x-assist-type: image
+                                type: object
+                    description: new desc
+                default:
+                    description: ""
+            summary: 截图
+            x-functionName: screenshot
