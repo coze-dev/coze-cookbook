@@ -2,13 +2,13 @@
 
 本示例会从端插件介绍、创建端插件、关联端插件和智能体、如何从需求出发拆解任务为端插件、在 API 中使用端插件几个维度来详细的讲解端插件的定位和使用。
 
-详细参考文档: (扣子中如何使用端插件，让智能体与本地设备交互?)[https://bytedance.larkoffice.com/docx/AAAedsXYAolDEVx47yJcsth2nrd]
+详细参考文档: [扣子中如何使用端插件，让智能体与本地设备交互?](https://bytedance.larkoffice.com/docx/AAAedsXYAolDEVx47yJcsth2nrd)
 
 ## 配置说明
 
-首先堵着需要按照 (扣子中如何使用端插件，让智能体与本地设备交互?)[https://bytedance.larkoffice.com/docx/AAAedsXYAolDEVx47yJcsth2nrd] 来设置端插件和智能体，确保和教程中的示例一致。
+首先堵着需要按照 [扣子中如何使用端插件，让智能体与本地设备交互?](https://bytedance.larkoffice.com/docx/AAAedsXYAolDEVx47yJcsth2nrd) 来设置端插件和智能体，确保和教程中的示例一致。
 
-然后将智能体发布为 API 服务，记录下智能体的 ID，并在 (扣子个人访问令牌)[https://www.coze.cn/open/oauth/pats] 申请一个个人访问令牌。
+然后将智能体发布为 API 服务，记录下智能体的 ID，并在 [扣子个人访问令牌](https://www.coze.cn/open/oauth/pats) 申请一个个人访问令牌。
  
 ## 运行教程
 
