@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 import secrets
 
@@ -9,8 +10,11 @@ from cozepy import (
     Message,
     MessageObjectString,
     ChatEventType,
+    setup_logging,
 )
 from cozepy.util import write_pcm_to_wav_file
+
+setup_logging(logging.ERROR)
 
 
 # 主脚本

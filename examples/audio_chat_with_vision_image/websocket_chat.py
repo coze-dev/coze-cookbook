@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 
 from cozepy import (
@@ -15,10 +16,10 @@ from cozepy import (
     ConversationAudioDeltaEvent,
     ConversationChatCompletedEvent,
 )
-from cozepy.log import log_info
+from cozepy.log import log_info, setup_logging
 from cozepy.util import write_pcm_to_wav_file
 
-# setup_logging(logging.DEBUG)
+setup_logging(logging.ERROR)
 
 
 class WebsocketsChatEventHandler(AsyncWebsocketsChatEventHandler):
@@ -33,7 +34,7 @@ class WebsocketsChatEventHandler(AsyncWebsocketsChatEventHandler):
     async def on_conversation_chat_created(
         self, cli: AsyncWebsocketsChatClient, event: ConversationChatCreatedEvent
     ):
-        print(f"对话开始 logid: {event.response.logid}")
+        print(f"对话开始 logid: {event.detail.logid}")
 
     async def on_conversation_message_delta(
         self, cli: AsyncWebsocketsChatClient, event: ConversationMessageDeltaEvent
