@@ -39,7 +39,7 @@ pip install -r requirements.txt
 COZE_API_TOKEN=扣子令牌 COZE_BOT_ID=智能体_ID python http_chat.py
 ```
 
-![](./http_chat.py)
+![](./http_chat.png)
 
 
 ## 运行对话流 + Websocket /v1/chat
@@ -49,4 +49,4 @@ COZE_API_TOKEN=扣子令牌 COZE_BOT_ID=智能体_ID python http_chat.py
 COZE_API_TOKEN=扣子令牌 COZE_BOT_ID=智能体_ID COZE_WORKFLOW_ID=对话流_ID python websocket_chat.py
 ```
 
-![](./websocket_chat.py)
+![](./websocket_chat.png)

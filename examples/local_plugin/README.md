@@ -6,7 +6,7 @@
 
 ## 配置说明
 
-首先堵着需要按照 [扣子中如何使用端插件，让智能体与本地设备交互?](https://bytedance.larkoffice.com/docx/AAAedsXYAolDEVx47yJcsth2nrd) 来设置端插件和智能体，确保和教程中的示例一致。
+首先需要按照 [扣子中如何使用端插件，让智能体与本地设备交互?](https://bytedance.larkoffice.com/docx/AAAedsXYAolDEVx47yJcsth2nrd) 来设置端插件和智能体，确保和教程中的示例一致。
 
 然后将智能体发布为 API 服务，记录下智能体的 ID，并在 [扣子个人访问令牌](https://www.coze.cn/open/oauth/pats) 申请一个个人访问令牌。
  
