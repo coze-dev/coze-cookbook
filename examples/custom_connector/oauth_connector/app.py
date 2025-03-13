@@ -70,8 +70,9 @@ def load_coze_oauth_app(config_path) -> JWTOAuthApp:
         raise Exception(f"加载 OAuth 失败: {str(e)}")
 
 
+connector_oauth_app = load_coze_oauth_app(COZE_OAUTH_CONFIG_PATH)
 connector_coze = Coze(
-    auth=JWTAuth(oauth_app=load_coze_oauth_app(COZE_OAUTH_CONFIG_PATH), ttl=86399),
+    auth=JWTAuth(oauth_app=connector_oauth_app, ttl=86399),
     base_url=COZE_CN_BASE_URL,
 )
 
@@ -215,7 +216,8 @@ def chat(bot_id):
     bot = next((b for b in bots if b["bot_id"] == bot_id), None)
     if not bot:
         return redirect(url_for("bots"))
-    return render_template("chat.html", bot=bot)
+    token = connector_oauth_app.get_access_token(ttl=86399).access_token
+    return render_template("chat.html", bot=bot, token=token)
 
 
 @app.route("/chat/<bot_id>/send", methods=["POST"])

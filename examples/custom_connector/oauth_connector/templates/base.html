@@ -17,8 +17,9 @@
                         </a>
                     </div>
                 </div>
-                <div class="flex items-center space-x-3">
-                    <a href="/bots" class="py-2 px-4 text-gray-500 hover:text-gray-700">Bots</a>
+                <div class="flex items-center space-x-6">
+                    <a href="/bots" class="py-2 px-4 text-gray-500 hover:text-gray-700 {% if request.path == '/bots' %}text-blue-500 font-semibold{% endif %}">智能体</a>
+                    <a href="/devices" class="py-2 px-4 text-gray-500 hover:text-gray-700 {% if request.path == '/devices' %}text-blue-500 font-semibold{% endif %}">设备绑定</a>
                 </div>
             </div>
         </div>
