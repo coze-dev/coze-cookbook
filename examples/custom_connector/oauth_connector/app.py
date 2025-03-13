@@ -6,7 +6,14 @@ import secrets
 import time
 from functools import wraps
 
-from cozepy import Coze, TokenAuth
+from cozepy import (
+    Coze,
+    TokenAuth,
+    JWTAuth,
+    JWTOAuthApp,
+    load_oauth_app_from_config,
+    COZE_CN_BASE_URL,
+)
 from dotenv import load_dotenv
 from flask import (
     Flask,
@@ -48,8 +55,25 @@ AUTHORIZE_URL = "https://www.coze.cn/api/oauth/authorize"
 TOKEN_URL = "https://www.coze.cn/api/oauth/token"
 REDIRECT_URI = "http://localhost:5000/callback"
 
-# 存储 bot 信息的文件
-BOTS_FILE = "bots.json"
+BOTS_FILE = "bots.json"  # 存储 bot 信息的文件
+COZE_OAUTH_CONFIG_PATH = "coze_oauth_config.json"  # jwt oauth 配置文件
+
+
+def load_coze_oauth_app(config_path) -> JWTOAuthApp:
+    try:
+        with open(config_path, "r") as file:
+            config = json.loads(file.read())
+        return load_oauth_app_from_config(config)  # type: ignore
+    except FileNotFoundError:
+        raise Exception("配置不存在")
+    except Exception as e:
+        raise Exception(f"加载 OAuth 失败: {str(e)}")
+
+
+connector_coze = Coze(
+    auth=JWTAuth(oauth_app=load_coze_oauth_app(COZE_OAUTH_CONFIG_PATH), ttl=86399),
+    base_url=COZE_CN_BASE_URL,
+)
 
 
 def log_request_response(f):
@@ -93,8 +117,30 @@ def log_request_response(f):
 def load_bots():
     if os.path.exists(BOTS_FILE):
         with open(BOTS_FILE, "r") as f:
-            return json.load(f)
-    return {}
+            data = json.load(f)
+            return [
+                {"bot_id": bot_id, "bot_name": info.get("bot_name", "")}
+                for bot_id, info in data.items()
+            ]
+
+    return []
+
+
+def load_bot_and_info():
+    bots = load_bots()
+    res = []
+    for bot in bots:
+        bot_info = connector_coze.bots.retrieve(bot_id=bot["bot_id"])
+
+        res.append(
+            {
+                "bot_id": bot["bot_id"],
+                "bot_name": bot["bot_name"],
+                "bot_description": bot_info.description,
+                "bot_icon_url": bot_info.icon_url,
+            }
+        )
+    return res
 
 
 def save_bot(bot_id, bot_name):
@@ -102,7 +148,9 @@ def save_bot(bot_id, bot_name):
     while retry_count > 0:
         try:
             bots = load_bots()
-            bots[bot_id] = bot_name
+            bots[bot_id] = {
+                "bot_name": bot_name,
+            }
             with open(BOTS_FILE, "w") as f:
                 json.dump(bots, f)
             return
@@ -156,22 +204,15 @@ def callback():
 @app.route("/bots")
 @log_request_response
 def bots():
-    bots = load_bots()
-    # bots map to list
-    bots_list = [
-        {"bot_id": bot_id, "bot_name": bot_name} for bot_id, bot_name in bots.items()
-    ]
-    return render_template("bots.html", bots=bots_list)
+    bots = load_bot_and_info()
+    return render_template("bots.html", bots=bots)
 
 
 @app.route("/chat/<bot_id>")
 @log_request_response
 def chat(bot_id):
     bots = load_bots()
-    bots_list = [
-        {"bot_id": bot_id, "bot_name": bot_name} for bot_id, bot_name in bots.items()
-    ]
-    bot = next((b for b in bots_list if b["bot_id"] == bot_id), None)
+    bot = next((b for b in bots if b["bot_id"] == bot_id), None)
     if not bot:
         return redirect(url_for("bots"))
     return render_template("chat.html", bot=bot)
@@ -181,10 +222,7 @@ def chat(bot_id):
 @log_request_response
 def chat_send(bot_id):
     bots = load_bots()
-    bots_list = [
-        {"bot_id": bot_id, "bot_name": bot_name} for bot_id, bot_name in bots.items()
-    ]
-    bot = next((b for b in bots_list if b["bot_id"] == bot_id), None)
+    bot = next((b for b in bots if b["bot_id"] == bot_id), None)
     if not bot:
         return "Bot not found", 404
 

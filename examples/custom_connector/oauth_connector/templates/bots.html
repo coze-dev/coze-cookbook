@@ -6,14 +6,34 @@
 <div class="max-w-4xl mx-auto">
     <h1 class="text-3xl font-bold text-gray-800 mb-8">Bot 列表</h1>
     {% if bots %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="space-y-4">
             {% for bot in bots %}
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ bot.name }}</h2>
-                <p class="text-gray-600 mb-4">{{ bot.description }}</p>
-                <a href="/chat/{{ bot.bot_id }}" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-200">
-                    开始对话
-                </a>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+                            {% if bot.bot_icon_url %}
+                                <img src="{{ bot.bot_icon_url }}" alt="{{ bot.bot_name }}" class="w-full h-full object-cover">
+                            {% else %}
+                                <div class="w-full h-full flex items-center justify-center text-gray-400">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">{{ bot.bot_name }}</h2>
+                            <p class="text-gray-600 mt-1">{{ bot.bot_description }}</p>
+                        </div>
+                    </div>
+                    <a href="/chat/{{ bot.bot_id }}" class="inline-flex items-center bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-200">
+                        <span>开始对话</span>
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </a>
+                </div>
             </div>
             {% endfor %}
         </div>
