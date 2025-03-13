@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}授权确认 - 扣子渠道 Demo{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-2xl font-bold mb-4 text-center">授权确认</h2>
+    <div class="mb-6">
+        <p class="text-gray-700 mb-4">应用 <span class="font-semibold">{{ client_id }}</span> 请求访问您的账号</p>
+        <div class="bg-gray-100 p-4 rounded-lg mb-4">
+            <h3 class="font-semibold mb-2">将获得以下权限：</h3>
+            <ul class="list-disc list-inside text-gray-600">
+                <li>访问您的基本信息</li>
+                <li>获取您的用户信息</li>
+            </ul>
+        </div>
+    </div>
+    <form action="{{ url_for('oauth_authorize') }}" method="post" class="space-y-4">
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+        <input type="hidden" name="response_type" value="{{ response_type }}">
+        <input type="hidden" name="state" value="{{ state }}">
+        <div class="flex space-x-4">
+            <button type="submit" name="action" value="allow" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                确认授权
+            </button>
+            <button type="submit" name="action" value="deny" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                拒绝授权
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

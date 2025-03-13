@@ -4,7 +4,16 @@ from functools import wraps
 
 from cozepy import Coze, TokenAuth
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, session, Response
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    Response,
+    jsonify,
+)
 from requests_oauthlib import OAuth2Session
 
 load_dotenv()
@@ -15,6 +24,10 @@ app.secret_key = os.urandom(24)
 # OAuth 配置
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+CONNECTOR_CLIENT_ID = os.getenv("CONNECTOR_CLIENT_ID")  # 渠道分配给扣子的 client_id
+CONNECTOR_CLIENT_SECRET = os.getenv(
+    "CONNECTOR_CLIENT_SECRET"
+)  # 渠道分配给扣子的 client_secret
 AUTHORIZE_URL = "https://www.coze.cn/api/oauth/authorize"
 TOKEN_URL = "https://www.coze.cn/api/oauth/token"
 REDIRECT_URI = "http://localhost:5000/callback"
@@ -146,6 +159,91 @@ def webhook():
     if data.get("type") == "bot.created":
         save_bot(data["bot"])
     return "", 200
+
+
+@app.route("/oauth/authorize", methods=["GET", "POST"])
+def oauth_authorize():
+    if request.method == "GET":
+        # http://127.0.0.1:5000/oauth/authorize?client_id=client_id_for_coze&response_type=code&redirect_uri=http://127.0.0.1:9090
+        # 验证必要参数
+        client_id = request.args.get("client_id")
+        redirect_uri = request.args.get("redirect_uri")
+        response_type = request.args.get("response_type")
+        state = request.args.get("state") or ""
+
+        if not all([client_id, redirect_uri, response_type]):
+            return jsonify({"code": 400, "message": "缺少必要参数"}), 400
+
+        if client_id != CONNECTOR_CLIENT_ID:
+            return jsonify({"code": 401, "message": "client_id 无效"}), 401
+
+        if response_type != "code":
+            return jsonify({"code": 400, "message": "response_type 必须为 code"}), 400
+
+        return render_template(
+            "authorize.html",
+            client_id=client_id,
+            redirect_uri=redirect_uri,
+            response_type=response_type,
+            state=state,
+        )
+    else:
+        # 处理授权确认
+        client_id = request.form.get("client_id")
+        redirect_uri = request.form.get("redirect_uri")
+        state = request.form.get("state")
+        action = request.form.get("action")
+
+        if action == "deny":
+            return render_template("error.html")
+
+        # 生成授权码（实际应用中应该使用更安全的方式）
+        code = os.urandom(16).hex()
+
+        # 在实际应用中，这里应该将授权码与用户信息关联并存储
+
+        return redirect(f"{redirect_uri}?code={code}&state={state}")
+
+
+@app.route("/oauth/token", methods=["POST"])
+def oauth_token():
+    data = request.json
+    if not data:
+        return jsonify({"code": 400, "message": "请求参数错误"}), 400
+
+    # 验证必要参数
+    required_fields = ["client_id", "client_secret", "code", "grant_type"]
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"code": 400, "message": f"缺少必要参数: {field}"}), 400
+
+    # 验证 client_id 和 client_secret
+    if data["client_id"] != CLIENT_ID or data["client_secret"] != CLIENT_SECRET:
+        return jsonify({"code": 401, "message": "client_id 或 client_secret 无效"}), 401
+
+    # 验证 grant_type
+    if data["grant_type"] != "authorization_code":
+        return jsonify(
+            {"code": 400, "message": "grant_type 必须为 authorization_code"}
+        ), 400
+
+    # 生成 access_token（实际应用中应该使用更安全的方式）
+    access_token = os.urandom(16).hex()
+
+    return jsonify(
+        {"access_token": access_token, "token_type": "bearer", "expires_in": 3600}
+    )
+
+
+@app.route("/oauth/user", methods=["GET"])
+def oauth_user():
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return jsonify({"code": 401, "message": "未提供有效的访问令牌"}), 401
+
+    # 在实际应用中，这里应该验证 access_token 的有效性
+    # 并根据 access_token 获取对应的用户信息
+    return jsonify({"name": "zhangsan", "id": "user_123"})
 
 
 if __name__ == "__main__":
