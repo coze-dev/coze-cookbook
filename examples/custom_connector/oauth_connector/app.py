@@ -359,5 +359,37 @@ def coze_callback():
     return jsonify({"audit": {"audit_status": 2, "reason": ""}}), 200
 
 
+@app.route("/sync_device", methods=["POST"])
+@log_request_response
+def sync_device():
+    data = request.get_json()
+    if not data or "device_id" not in data or "device_name" not in data:
+        return jsonify({"message": "缺少必要参数"}), 400
+
+    # device_id = data["device_id"]
+    # device_name = data["device_name"]
+
+    try:
+        # 调用扣子 API 同步设备信息
+        # response = connector_coze.connectors.update_user_configs(
+        #     configs=[
+        #         {
+        #             "key": "device_id",
+        #             "enums": [{"value": device_id, "label": device_name}],
+        #         }
+        #     ]
+        # )
+        return jsonify({"message": "设备同步成功"}), 200
+    except Exception as e:
+        logger.error(f"同步设备失败: {str(e)}")
+        return jsonify({"message": f"同步设备失败: {str(e)}"}), 500
+
+
+@app.route("/devices")
+@log_request_response
+def devices():
+    return render_template("devices.html")
+
+
 if __name__ == "__main__":
     app.run(debug=True)
