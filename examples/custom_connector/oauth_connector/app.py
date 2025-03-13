@@ -22,6 +22,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+app.token_store = {}
 
 # OAuth 配置
 CLIENT_ID = os.getenv("CLIENT_ID")
@@ -239,11 +240,7 @@ def oauth_token():
     access_token = secrets.token_urlsafe(32)
 
     # 将 token 存储到内存中
-    if not hasattr(app, "token_store"):
-        app.token_store = {}
-    app.token_store[access_token] = {
-        "expired_at": int(time.time()) + 3600,
-    }
+    app.token_store[access_token] = int(time.time()) + 3600
 
     return jsonify(
         {"access_token": access_token, "token_type": "bearer", "expires_in": 3600}
@@ -260,7 +257,7 @@ def oauth_user():
     access_token = auth_header.split(" ")[1]
     if (
         access_token not in app.token_store
-        or app.token_store[access_token]["expired_at"] < time.time()
+        or app.token_store[access_token] < time.time()
     ):
         return jsonify({"code": 401, "message": "访问令牌无效"}), 401
 
