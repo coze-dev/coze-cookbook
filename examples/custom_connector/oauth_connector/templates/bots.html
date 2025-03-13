@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Bot 列表 - 扣子渠道 Demo{% endblock %}
+{% block title %}扣子渠道 Demo{% endblock %}
 
 {% block content %}
 <script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.5/libs/cn/index.js"></script>
 <div class="max-w-6xl mx-auto px-4">
-    <h1 class="text-3xl font-bold text-gray-800 mb-8">Bot 列表</h1>
     {% if bots %}
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Bot 列表</h1>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for bot in bots %}
             <div class="bg-white rounded-lg shadow-md p-4 flex flex-col">
@@ -39,8 +39,9 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="text-center text-gray-600">
-            <p>暂无可用的 Bot</p>
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-8">扣子自定义渠道 Demo</h1>
+            <p class="text-lg text-gray-600">欢迎使用扣子自定义渠道 Demo，目前暂无可用的 Bot。</p>
         </div>
     {% endif %}
 </div>

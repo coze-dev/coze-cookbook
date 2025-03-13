@@ -20,12 +20,11 @@ from flask import (
     request,
     redirect,
     url_for,
-    session,
     Response,
     jsonify,
 )
-from requests_oauthlib import OAuth2Session
 
+# 加载 .env 文件, 用户可以自行修改 .env
 load_dotenv()
 
 app = Flask(__name__)
@@ -41,23 +40,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # OAuth 配置
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-CONNECTOR_CLIENT_ID = os.getenv("CONNECTOR_CLIENT_ID")  # 渠道分配给扣子的 client_id
+CONNECTOR_CLIENT_ID = os.getenv(
+    "CONNECTOR_CLIENT_ID"
+)  # 渠道分配给扣子的 oauth client_id
 CONNECTOR_CLIENT_SECRET = os.getenv(
     "CONNECTOR_CLIENT_SECRET"
-)  # 渠道分配给扣子的 client_secret
-CONNECTOR_USER_ID = os.getenv("CONNECTOR_USER_ID")  # 渠道的用户 uid
-CONNECTOR_USER_NAME = os.getenv("CONNECTOR_USER_NAME")  # 渠道的用户 name
+)  # 渠道分配给扣子的 oauth client_secret
+CONNECTOR_USER_ID = os.getenv("CONNECTOR_USER_ID")  # oauth 后渠道的用户 uid
+CONNECTOR_USER_NAME = os.getenv("CONNECTOR_USER_NAME")  # oauth 后渠道的用户 name
+# 扣子的配置
 COZE_CALLBACK_TOKEN = os.getenv("COZE_CALLBACK_TOKEN")  # 扣子回调 token
-AUTHORIZE_URL = "https://www.coze.cn/api/oauth/authorize"
-TOKEN_URL = "https://www.coze.cn/api/oauth/token"
-REDIRECT_URI = "http://localhost:5000/callback"
-
+# 服务静态配置
 BOTS_FILE = "bots.json"  # 存储 bot 信息的文件
 COZE_OAUTH_CONFIG_PATH = "coze_oauth_config.json"  # jwt oauth 配置文件
 
 
+# 基于配置文件加载 coze oauth jwt app
 def load_coze_oauth_app(config_path) -> JWTOAuthApp:
     try:
         with open(config_path, "r") as file:
@@ -69,13 +67,7 @@ def load_coze_oauth_app(config_path) -> JWTOAuthApp:
         raise Exception(f"加载 OAuth 失败: {str(e)}")
 
 
-connector_oauth_app = load_coze_oauth_app(COZE_OAUTH_CONFIG_PATH)
-connector_coze = Coze(
-    auth=JWTAuth(oauth_app=connector_oauth_app, ttl=86399),
-    base_url=COZE_CN_BASE_URL,
-)
-
-
+# 日志装饰器
 def log_request_response(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -114,6 +106,15 @@ def log_request_response(f):
     return decorated_function
 
 
+# 渠道的扣子客户端和 oauth 客户端
+connector_oauth_app = load_coze_oauth_app(COZE_OAUTH_CONFIG_PATH)
+connector_coze = Coze(
+    auth=JWTAuth(oauth_app=connector_oauth_app, ttl=86399),
+    base_url=COZE_CN_BASE_URL,
+)
+
+
+# 从 bots.json 加载已经发布的 bot 数据
 def load_bots():
     if os.path.exists(BOTS_FILE):
         with open(BOTS_FILE, "r") as f:
@@ -126,6 +127,7 @@ def load_bots():
     return []
 
 
+# 从 bots.json 加载已经发布的 bot 数据, 并且拉取头像等数据
 def load_bot_and_info():
     bots = load_bots()
     res = []
@@ -143,6 +145,7 @@ def load_bot_and_info():
     return res
 
 
+# 将 bot 数据保存到本地文件
 def save_bot(bot_id, bot_name):
     retry_count = 10
     while retry_count > 0:
@@ -159,6 +162,7 @@ def save_bot(bot_id, bot_name):
             logger.warning(f"保存 bot 数据失败，正在重试... : {e}")
 
 
+# 计算扣子 bot 发布回调签名
 def gen_coze_callback_signature(
     nonce: str, timestamp: str, body: str, token: str
 ) -> str:
@@ -176,32 +180,14 @@ def gen_coze_callback_signature(
     return hash_obj.hexdigest()
 
 
+# 首页路由, 302 到 bots 列表页
 @app.route("/")
 @log_request_response
 def index():
-    return render_template("index.html")
-
-
-@app.route("/logout")
-@log_request_response
-def logout():
-    session.clear()
-    return redirect(url_for("index"))
-
-
-@app.route("/callback")
-@log_request_response
-def callback():
-    coze = OAuth2Session(
-        CLIENT_ID, redirect_uri=REDIRECT_URI, state=session.get("oauth_state")
-    )
-    token = coze.fetch_token(
-        TOKEN_URL, client_secret=CLIENT_SECRET, authorization_response=request.url
-    )
-    session["oauth_token"] = token
     return redirect(url_for("bots"))
 
 
+# bots 列表页, 展示所有已经发布的 bots 列表, 支持和 bot 聊天
 @app.route("/bots")
 @log_request_response
 def bots():
@@ -210,6 +196,7 @@ def bots():
     return render_template("bots.html", bots=bots, token=token)
 
 
+# oauth 授权页, 在扣子发布页面点击授权的时候, 会跳转到本页面
 @app.route("/oauth/authorize", methods=["GET", "POST"])
 @log_request_response
 def oauth_authorize():
@@ -254,6 +241,7 @@ def oauth_authorize():
         return redirect(f"{redirect_uri}?code={code}&state={state}")
 
 
+# oauth code 换 token api, 扣子在发布页点击授权后同意授权后, 会携带 code 302 到扣子页面, 扣子会使用 code 访问本接口申请获取 access_token
 @app.route("/oauth/token", methods=["POST"])
 @log_request_response
 def oauth_token():
@@ -297,6 +285,7 @@ def oauth_token():
     )
 
 
+# 在上一步获取到 access_token 后, 使用 access_token 换取 oauth 授权的用户信息, 扣子会绑定扣子用户和 oauth 授权用户
 @app.route("/oauth/user", methods=["GET"])
 @log_request_response
 def oauth_user():
@@ -317,6 +306,7 @@ def oauth_user():
     return jsonify({"id": CONNECTOR_USER_ID, "name": CONNECTOR_USER_NAME})
 
 
+# 在扣子发布智能体到渠道的时候, 扣子会给本接口推送一条 json 数据, 包含 bot 相关信息
 @app.route("/coze/callback", methods=["POST"])
 @log_request_response
 def coze_callback():
@@ -359,6 +349,7 @@ def coze_callback():
     return jsonify({"audit": {"audit_status": 2, "reason": ""}}), 200
 
 
+# 通过调用扣子接口, 将设备 id 同步到扣子, 用户可以在发布页面点击配置选择对应的设备 id
 @app.route("/sync_device", methods=["POST"])
 @log_request_response
 def sync_device():
@@ -391,5 +382,6 @@ def devices():
     return render_template("devices.html")
 
 
+# 主入口
 if __name__ == "__main__":
     app.run(debug=True)
