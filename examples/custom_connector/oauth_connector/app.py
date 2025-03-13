@@ -1,5 +1,7 @@
 import json
 import os
+import secrets
+import time
 from functools import wraps
 
 from cozepy import Coze, TokenAuth
@@ -28,6 +30,8 @@ CONNECTOR_CLIENT_ID = os.getenv("CONNECTOR_CLIENT_ID")  # 渠道分配给扣子�
 CONNECTOR_CLIENT_SECRET = os.getenv(
     "CONNECTOR_CLIENT_SECRET"
 )  # 渠道分配给扣子的 client_secret
+CONNECTOR_USER_ID = os.getenv("CONNECTOR_USER_ID")  # 渠道的用户 uid
+CONNECTOR_USER_NAME = os.getenv("CONNECTOR_USER_NAME")  # 渠道的用户 name
 AUTHORIZE_URL = "https://www.coze.cn/api/oauth/authorize"
 TOKEN_URL = "https://www.coze.cn/api/oauth/token"
 REDIRECT_URI = "http://localhost:5000/callback"
@@ -164,6 +168,7 @@ def webhook():
 @app.route("/oauth/authorize", methods=["GET", "POST"])
 def oauth_authorize():
     if request.method == "GET":
+        # https://vigilant-space-cod-jj9jwx9p7gqfrwv-5000.app.github.dev/oauth/authorize?client_id=client_id_for_coze&response_type=code&redirect_uri=http://127.0.0.1:9090
         # http://127.0.0.1:5000/oauth/authorize?client_id=client_id_for_coze&response_type=code&redirect_uri=http://127.0.0.1:9090
         # 验证必要参数
         client_id = request.args.get("client_id")
@@ -197,8 +202,8 @@ def oauth_authorize():
         if action == "deny":
             return render_template("error.html")
 
-        # 生成授权码（实际应用中应该使用更安全的方式）
-        code = os.urandom(16).hex()
+        # 生成授权码
+        code = secrets.token_urlsafe(16)
 
         # 在实际应用中，这里应该将授权码与用户信息关联并存储
 
@@ -218,7 +223,10 @@ def oauth_token():
             return jsonify({"code": 400, "message": f"缺少必要参数: {field}"}), 400
 
     # 验证 client_id 和 client_secret
-    if data["client_id"] != CLIENT_ID or data["client_secret"] != CLIENT_SECRET:
+    if (
+        data["client_id"] != CONNECTOR_CLIENT_ID
+        or data["client_secret"] != CONNECTOR_CLIENT_SECRET
+    ):
         return jsonify({"code": 401, "message": "client_id 或 client_secret 无效"}), 401
 
     # 验证 grant_type
@@ -227,8 +235,15 @@ def oauth_token():
             {"code": 400, "message": "grant_type 必须为 authorization_code"}
         ), 400
 
-    # 生成 access_token（实际应用中应该使用更安全的方式）
-    access_token = os.urandom(16).hex()
+    # 生成 access_token
+    access_token = secrets.token_urlsafe(32)
+
+    # 将 token 存储到内存中
+    if not hasattr(app, "token_store"):
+        app.token_store = {}
+    app.token_store[access_token] = {
+        "expired_at": int(time.time()) + 3600,
+    }
 
     return jsonify(
         {"access_token": access_token, "token_type": "bearer", "expires_in": 3600}
@@ -241,9 +256,17 @@ def oauth_user():
     if not auth_header or not auth_header.startswith("Bearer "):
         return jsonify({"code": 401, "message": "未提供有效的访问令牌"}), 401
 
+    # 验证 access_token
+    access_token = auth_header.split(" ")[1]
+    if (
+        access_token not in app.token_store
+        or app.token_store[access_token]["expired_at"] < time.time()
+    ):
+        return jsonify({"code": 401, "message": "访问令牌无效"}), 401
+
     # 在实际应用中，这里应该验证 access_token 的有效性
     # 并根据 access_token 获取对应的用户信息
-    return jsonify({"name": "zhangsan", "id": "user_123"})
+    return jsonify({"id": CONNECTOR_USER_ID, "name": CONNECTOR_USER_NAME})
 
 
 if __name__ == "__main__":
