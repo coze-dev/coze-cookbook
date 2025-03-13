@@ -51,9 +51,6 @@ REDIRECT_URI = "http://localhost:5000/callback"
 # 存储 bot 信息的文件
 BOTS_FILE = "bots.json"
 
-DEFAULT_USERNAME = "coze"
-DEFAULT_PASSWORD = "12345678"
-
 
 def log_request_response(f):
     @wraps(f)
@@ -89,16 +86,6 @@ def log_request_response(f):
             logger.debug(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
 
         return response
-
-    return decorated_function
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get("logged_in") and request.endpoint != "callback":
-            return redirect(url_for("login_page", next=request.url))
-        return f(*args, **kwargs)
 
     return decorated_function
 
@@ -141,29 +128,9 @@ def gen_coze_callback_signature(
 
 
 @app.route("/")
-@login_required
 @log_request_response
 def index():
     return render_template("index.html")
-
-
-@app.route("/login", methods=["GET", "POST"])
-@log_request_response
-def login_page():
-    if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        logger.debug(f"尝试登录用户: {username}")
-        if username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
-            session["logged_in"] = True
-            next_url = request.form.get("next") or url_for("index")
-            logger.info(f"用户 {username} 登录成功")
-            return redirect(next_url)
-        logger.warning(f"用户 {username} 登录失败：用户名或密码错误")
-        return render_template(
-            "login.html", error="用户名或密码错误", next=request.form.get("next")
-        )
-    return render_template("login.html", next=request.args.get("next"))
 
 
 @app.route("/logout")
@@ -171,16 +138,6 @@ def login_page():
 def logout():
     session.clear()
     return redirect(url_for("index"))
-
-
-@app.route("/coze/login")
-@login_required
-@log_request_response
-def coze_login():
-    coze = OAuth2Session(CLIENT_ID, redirect_uri=REDIRECT_URI)
-    authorization_url, state = coze.authorization_url(AUTHORIZE_URL)
-    session["oauth_state"] = state
-    return redirect(authorization_url)
 
 
 @app.route("/callback")
@@ -197,7 +154,6 @@ def callback():
 
 
 @app.route("/bots")
-@login_required
 @log_request_response
 def bots():
     bots = load_bots()
@@ -209,7 +165,6 @@ def bots():
 
 
 @app.route("/chat/<bot_id>")
-@login_required
 @log_request_response
 def chat(bot_id):
     bots = load_bots()
@@ -223,7 +178,6 @@ def chat(bot_id):
 
 
 @app.route("/chat/<bot_id>/send", methods=["POST"])
-@login_required
 @log_request_response
 def chat_send(bot_id):
     bots = load_bots()
@@ -255,8 +209,6 @@ def chat_send(bot_id):
 @log_request_response
 def oauth_authorize():
     if request.method == "GET":
-        # https://vigilant-space-cod-jj9jwx9p7gqfrwv-5000.app.github.dev/oauth/authorize?client_id=client_id_for_coze&response_type=code&redirect_uri=http://127.0.0.1:9090
-        # http://127.0.0.1:5000/oauth/authorize?client_id=client_id_for_coze&response_type=code&redirect_uri=http://127.0.0.1:9090
         # 验证必要参数
         client_id = request.args.get("client_id")
         redirect_uri = request.args.get("redirect_uri")
