@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Bot 列表 - Coze Bot{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Bot 列表</h1>
+    {% if bots %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for bot in bots %}
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ bot.name }}</h2>
+                <p class="text-gray-600 mb-4">{{ bot.description }}</p>
+                <a href="/chat/{{ bot.bot_id }}" class="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-200">
+                    开始对话
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center text-gray-600">
+            <p>暂无可用的 Bot</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

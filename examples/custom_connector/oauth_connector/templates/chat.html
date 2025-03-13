@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}与 {{ bot.name }} 对话 - Coze Bot{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">{{ bot.name }}</h1>
+            <a href="/bots" class="text-blue-500 hover:text-blue-600">返回列表</a>
+        </div>
+        <div id="chat-messages" class="space-y-4 mb-6 h-96 overflow-y-auto p-4 bg-gray-50 rounded">
+            <!-- 消息将在这里动态显示 -->
+        </div>
+        <div class="flex space-x-4">
+            <input type="text" id="message-input" class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入消息...">
+            <button onclick="sendMessage()" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200">发送</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const chatMessages = document.getElementById('chat-messages');
+const messageInput = document.getElementById('message-input');
+let isProcessing = false;
+
+async function sendMessage() {
+    if (isProcessing) return;
+    
+    const message = messageInput.value.trim();
+    if (!message) return;
+    
+    isProcessing = true;
+    messageInput.value = '';
+    
+    // 显示用户消息
+    appendMessage('user', message);
+    
+    try {
+        const response = await fetch(`/chat/{{ bot.bot_id }}/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message }),
+        });
+        
+        if (!response.ok) throw new Error('请求失败');
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let botResponse = '';
+        
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            
+            const text = decoder.decode(value);
+            botResponse += text;
+            updateBotMessage(botResponse);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('error', '发送消息失败，请重试');
+    } finally {
+        isProcessing = false;
+    }
+}
+
+function appendMessage(type, content) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `p-3 rounded-lg ${
+        type === 'user' ? 'bg-blue-100 ml-auto' : 'bg-white'
+    } ${
+        type === 'error' ? 'bg-red-100 text-red-700' : ''
+    } max-w-[80%]`;
+    messageDiv.textContent = content;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function updateBotMessage(content) {
+    const lastMessage = chatMessages.lastElementChild;
+    if (lastMessage && !lastMessage.classList.contains('bg-blue-100')) {
+        lastMessage.textContent = content;
+    } else {
+        appendMessage('bot', content);
+    }
+}
+
+// 支持按回车发送消息
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+</script>
+{% endblock %}
