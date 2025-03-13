@@ -2,6 +2,8 @@ import json
 import os
 import secrets
 import time
+import hmac
+import hashlib
 from functools import wraps
 
 from cozepy import Coze, TokenAuth
@@ -158,14 +160,6 @@ def chat_send(bot_id):
     return Response(generate(), mimetype="text/plain")
 
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.json
-    if data.get("type") == "bot.created":
-        save_bot(data["bot"])
-    return "", 200
-
-
 @app.route("/oauth/authorize", methods=["GET", "POST"])
 def oauth_authorize():
     if request.method == "GET":
@@ -264,6 +258,52 @@ def oauth_user():
     # 在实际应用中，这里应该验证 access_token 的有效性
     # 并根据 access_token 获取对应的用户信息
     return jsonify({"id": CONNECTOR_USER_ID, "name": CONNECTOR_USER_NAME})
+
+
+@app.route("/coze/callback", methods=["POST"])
+def coze_callback():
+    # 获取签名和时间戳
+    signature = request.headers.get("X-Coze-Signature")
+    timestamp = request.headers.get("X-Coze-Timestamp")
+
+    if not signature or not timestamp:
+        return jsonify({"code": 400, "message": "缺少签名或时间戳"}), 400
+
+    # 验证时间戳（5分钟内有效）
+    try:
+        ts = int(timestamp)
+        if abs(time.time() - ts) > 300:
+            return jsonify({"code": 400, "message": "时间戳已过期"}), 400
+    except ValueError:
+        return jsonify({"code": 400, "message": "无效的时间戳"}), 400
+
+    # 获取请求体
+    body = request.get_data()
+    if not body:
+        return jsonify({"code": 400, "message": "请求体为空"}), 400
+
+    # 验证签名
+    raw_str = timestamp + "." + body.decode("utf-8")
+    expected_signature = hmac.new(
+        CONNECTOR_CLIENT_SECRET.encode("utf-8"), raw_str.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+
+    if signature != expected_signature:
+        return jsonify({"code": 401, "message": "签名验证失败"}), 401
+
+    try:
+        data = json.loads(body)
+        bot_data = {
+            "bot_id": data.get("bot_id"),
+            "bot_name": data.get("bot_name"),
+            "timestamp": time.time(),
+        }
+        save_bot(bot_data)
+        return jsonify({"code": 200})
+    except json.JSONDecodeError:
+        return jsonify({"code": 400, "message": "无效的 JSON 格式"}), 400
+    except Exception as e:
+        return jsonify({"code": 500, "message": str(e)}), 500
 
 
 if __name__ == "__main__":
