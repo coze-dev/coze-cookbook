@@ -46,7 +46,14 @@
 </div>
 
 <script>
+let currentChatInstance = null;
+
 function startChat(botId, botName, token) {
+    if (currentChatInstance) {
+        currentChatInstance.hideChatBot();
+        currentChatInstance = null;
+    }
+
     const cozeWebSDK = new CozeWebSDK.WebChatClient({
         config: {
             botId: botId,
@@ -96,6 +103,7 @@ function startChat(botId, botName, token) {
         },
     });
     cozeWebSDK.showChatBot();
+    currentChatInstance = cozeWebSDK;
 }
 </script>
 {% endblock %}
