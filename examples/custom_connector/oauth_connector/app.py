@@ -1,9 +1,11 @@
-import os
 import json
+import os
+from functools import wraps
+
+from cozepy import Coze, TokenAuth
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, Response
 from requests_oauthlib import OAuth2Session
-from dotenv import load_dotenv
-from cozepy import Coze, TokenAuth
 
 load_dotenv()
 
@@ -19,6 +21,19 @@ REDIRECT_URI = "http://localhost:5000/callback"
 
 # 存储 bot 信息的文件
 BOTS_FILE = "bots.json"
+
+DEFAULT_USERNAME = "coze"
+DEFAULT_PASSWORD = "12345678"
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("logged_in") and request.endpoint != "callback":
+            return redirect(url_for("login_page", next=request.url))
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 def load_bots():
@@ -36,12 +51,35 @@ def save_bot(bot_data):
 
 
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
 
-@app.route("/login")
-def login():
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if username == DEFAULT_USERNAME and password == DEFAULT_PASSWORD:
+            session["logged_in"] = True
+            next_url = request.form.get("next") or url_for("index")
+            return redirect(next_url)
+        return render_template(
+            "login.html", error="用户名或密码错误", next=request.form.get("next")
+        )
+    return render_template("login.html", next=request.args.get("next"))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("index"))
+
+
+@app.route("/coze/login")
+@login_required
+def coze_login():
     coze = OAuth2Session(CLIENT_ID, redirect_uri=REDIRECT_URI)
     authorization_url, state = coze.authorization_url(AUTHORIZE_URL)
     session["oauth_state"] = state
@@ -61,12 +99,14 @@ def callback():
 
 
 @app.route("/bots")
+@login_required
 def bots():
     bots_list = load_bots()
     return render_template("bots.html", bots=bots_list)
 
 
 @app.route("/chat/<bot_id>")
+@login_required
 def chat(bot_id):
     bots_list = load_bots()
     bot = next((b for b in bots_list if b["bot_id"] == bot_id), None)
@@ -76,6 +116,7 @@ def chat(bot_id):
 
 
 @app.route("/chat/<bot_id>/send", methods=["POST"])
+@login_required
 def chat_send(bot_id):
     bots_list = load_bots()
     bot = next((b for b in bots_list if b["bot_id"] == bot_id), None)
