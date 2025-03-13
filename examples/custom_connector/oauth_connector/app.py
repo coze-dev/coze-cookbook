@@ -8,7 +8,6 @@ from functools import wraps
 
 from cozepy import (
     Coze,
-    TokenAuth,
     JWTAuth,
     JWTOAuthApp,
     load_oauth_app_from_config,
@@ -149,6 +148,7 @@ def save_bot(bot_id, bot_name):
     while retry_count > 0:
         try:
             bots = load_bots()
+            bots = {bot["bot_id"]: bot for bot in bots}
             bots[bot_id] = {
                 "bot_name": bot_name,
             }
@@ -206,43 +206,8 @@ def callback():
 @log_request_response
 def bots():
     bots = load_bot_and_info()
-    return render_template("bots.html", bots=bots)
-
-
-@app.route("/chat/<bot_id>")
-@log_request_response
-def chat(bot_id):
-    bots = load_bots()
-    bot = next((b for b in bots if b["bot_id"] == bot_id), None)
-    if not bot:
-        return redirect(url_for("bots"))
     token = connector_oauth_app.get_access_token(ttl=86399).access_token
-    return render_template("chat.html", bot=bot, token=token)
-
-
-@app.route("/chat/<bot_id>/send", methods=["POST"])
-@log_request_response
-def chat_send(bot_id):
-    bots = load_bots()
-    bot = next((b for b in bots if b["bot_id"] == bot_id), None)
-    if not bot:
-        return "Bot not found", 404
-
-    message = request.json.get("message")
-    if not message:
-        return "No message provided", 400
-
-    token = session.get("oauth_token")
-    if not token:
-        return "Not authenticated", 401
-
-    coze = Coze(auth=TokenAuth(token["access_token"]))
-
-    def generate():
-        for chunk in coze.chat.stream(bot_id=bot_id, message=message):
-            yield f"data: {json.dumps(chunk)}\n\n"
-
-    return Response(generate(), mimetype="text/event-stream")
+    return render_template("bots.html", bots=bots, token=token)
 
 
 @app.route("/oauth/authorize", methods=["GET", "POST"])
