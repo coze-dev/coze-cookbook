@@ -2,3 +2,5 @@
 .venv/
 .DS_Store
 a.py
+
+coze_oauth_config.json
