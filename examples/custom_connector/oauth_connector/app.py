@@ -241,20 +241,19 @@ def oauth_authorize():
         return redirect(f"{redirect_uri}?code={code}&state={state}")
 
 
-# oauth code 换 token api, 扣子在发布页点击授权后同意授权后, 会携带 code 302 到扣子页面, 扣子会使用 code 访问本接口申请获取 access_token
+# oauth code 换 token api, 扣子在发布页点击授权后同意授权后, 会携带
+# code302到扣子页面, 扣子会使用 code 访问本接口申请获取 access_token
 @app.route("/oauth/token", methods=["POST"])
 @log_request_response
 def oauth_token():
     data = request.json
     if not data:
-        logger.warning("OAuth token 请求缺少请求体")
         return jsonify({"code": 400, "message": "请求参数错误"}), 400
 
     # 验证必要参数
     required_fields = ["client_id", "client_secret", "code", "grant_type"]
     for field in required_fields:
         if field not in data:
-            logger.warning(f"OAuth token 请求缺少必要参数: {field}")
             return jsonify({"code": 400, "message": f"缺少必要参数: {field}"}), 400
 
     # 验证 client_id 和 client_secret
@@ -262,30 +261,27 @@ def oauth_token():
         data["client_id"] != CONNECTOR_CLIENT_ID
         or data["client_secret"] != CONNECTOR_CLIENT_SECRET
     ):
-        logger.error(f"无效的 client_id 或 client_secret: {data['client_id']}")
         return jsonify({"code": 401, "message": "client_id 或 client_secret 无效"}), 401
 
     # 验证 grant_type
     if data["grant_type"] != "authorization_code":
-        logger.warning(f"无效的 grant_type: {data['grant_type']}")
         return jsonify(
             {"code": 400, "message": "grant_type 必须为 authorization_code"}
         ), 400
 
     # 生成 access_token
     access_token = secrets.token_urlsafe(32)
-    logger.debug(f"为 client_id {data['client_id']} 生成新的 access_token")
 
     # 将 token 存储到内存中
     app.token_store[access_token] = int(time.time()) + 3600
-    logger.info("成功生成并存储 access_token，过期时间为 3600 秒")
 
     return jsonify(
         {"access_token": access_token, "token_type": "bearer", "expires_in": 3600}
     )
 
 
-# 在上一步获取到 access_token 后, 使用 access_token 换取 oauth 授权的用户信息, 扣子会绑定扣子用户和 oauth 授权用户
+# 在上一步获取到 access_token 后, 使用 access_token 换取
+# oauth 授权的用户信息, 扣子会绑定扣子用户和 oauth 授权用户
 @app.route("/oauth/user", methods=["GET"])
 @log_request_response
 def oauth_user():
@@ -315,7 +311,7 @@ def coze_callback():
     timestamp = request.headers.get("X-Coze-Timestamp")
     nonce = request.headers.get("X-Coze-Nonce")
 
-    if not signature or not timestamp:
+    if not signature or not timestamp or not nonce:
         return jsonify({"code": 400, "message": "缺少签名或时间戳"}), 400
 
     # 获取请求体
