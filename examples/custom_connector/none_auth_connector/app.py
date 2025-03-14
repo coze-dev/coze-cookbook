@@ -2,17 +2,14 @@ import hashlib
 import json
 import logging
 import os
-import time
 from functools import wraps
 
-import httpx
 from cozepy import (
     Coze,
     JWTAuth,
     JWTOAuthApp,
     load_oauth_app_from_config,
     COZE_CN_BASE_URL,
-    PKCEOAuthApp,
 )
 from dotenv import load_dotenv
 from flask import (
@@ -40,18 +37,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# 渠道 id
-CONNECTOR_ID = os.getenv("CONNECTOR_ID")  # 渠道 id
-CONNECTOR_PKCE_CLIENT_ID = os.getenv("CONNECTOR_PKCE_CLIENT_ID")  # 渠道 pkce client id
-# OAuth 配置
-CONNECTOR_CLIENT_ID = os.getenv(
-    "CONNECTOR_CLIENT_ID"
-)  # 渠道分配给扣子的 oauth client_id
-CONNECTOR_CLIENT_SECRET = os.getenv(
-    "CONNECTOR_CLIENT_SECRET"
-)  # 渠道分配给扣子的 oauth client_secret
-CONNECTOR_USER_ID = os.getenv("CONNECTOR_USER_ID")  # oauth 后渠道的用户 uid
-CONNECTOR_USER_NAME = os.getenv("CONNECTOR_USER_NAME")  # oauth 后渠道的用户 name
 # 扣子的配置
 COZE_CALLBACK_TOKEN = os.getenv("COZE_CALLBACK_TOKEN")  # 扣子回调 token
 # 服务静态配置
@@ -89,7 +74,11 @@ def log_request_response(f):
         response = f(*args, **kwargs)
 
         # 记录响应信息
-        if (
+        if isinstance(response, (Response, str)):
+            code = response.status_code if isinstance(response, Response) else 200
+            data = response.get_json() if isinstance(response, Response) else response
+            logger.info(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
+        elif (
             isinstance(response, tuple)
             and len(response) == 2
             and isinstance(response[0], Response)
@@ -107,9 +96,6 @@ def log_request_response(f):
 
 # 渠道的扣子客户端和 oauth 客户端
 connector_oauth_app = load_coze_oauth_app(COZE_OAUTH_CONFIG_PATH)
-connector_pkce_oauth_app = PKCEOAuthApp(
-    client_id=CONNECTOR_PKCE_CLIENT_ID, base_url=COZE_CN_BASE_URL
-)
 connector_coze = Coze(
     auth=JWTAuth(oauth_app=connector_oauth_app, ttl=86399),
     base_url=COZE_CN_BASE_URL,
@@ -162,34 +148,6 @@ def save_bot(bot_id, bot_name):
             return
         except Exception as e:
             logger.warning(f"保存 bot 数据失败，正在重试... : {e}")
-
-
-def update_coze_device(connector_id: str, token: str, device_id: str, device_name: str):
-    url = f"https://api.coze.cn/v1/connectors/{connector_id}/user_configs"
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    data = {
-        "configs": [
-            {"key": "device_id", "enums": [{"value": device_id, "label": device_name}]}
-        ]
-    }
-
-    client = httpx.Client()
-    response = client.post(url, json=data, headers=headers)
-    if response.status_code >= 400:
-        logid = response.headers.get("x-tt-logid")
-        raise Exception(f"同步设备失败: {logid}, resp: {response.text}")
-
-
-def get_coze_user_info(pkce_token: str):
-    url = "https://api.coze.cn/v1/users/me"
-    headers = {
-        "Authorization": f"Bearer {pkce_token}",
-    }
-    client = httpx.Client()
-    response = client.get(url, headers=headers)
-    response.raise_for_status()
-    # user_id, user_name, nick_name, avatar_url
-    return response.json()["data"]
 
 
 # 计算扣子 bot 发布回调签名
@@ -269,81 +227,6 @@ def coze_callback():
     return jsonify({"audit": {"audit_status": 2, "reason": ""}}), 200
 
 
-# 使用 pkce 授权获取到用户的 AccessToken
-@app.route("/pkce_callback")
-@log_request_response
-def pkce_callback():
-    redirect_uri = request.base_url
-    code = request.args.get("code")
-    code_verifier = request.args.get("state")
-    if not code or not code_verifier:
-        return jsonify({"message": "缺少授权码或 state"}), 400
-
-    try:
-        # 获取 token
-        token = connector_pkce_oauth_app.get_access_token(
-            redirect_uri=redirect_uri, code=code, code_verifier=code_verifier
-        )
-        # 创建响应对象并设置 cookie
-        resp = redirect(url_for("devices") + "?auth_success=true")
-        resp.set_cookie(
-            "coze_pkce_access_token",
-            token.access_token,
-            max_age=token.expires_in - int(time.time()),
-            httponly=True,
-            secure=True,
-        )
-        return resp
-    except Exception as e:
-        return jsonify({"message": f"PKCE 授权失败: {str(e)}"}), 500
-
-
-# 用 cookie 中的 coze_pkce_access_token 获取用户信息
-@app.route("/users_me")
-@log_request_response
-def users_me():
-    # 从 cookie 中获取 token
-    token = request.cookies.get("coze_pkce_access_token")
-    if not token:
-        return jsonify({"message": "未登录"}), 401
-
-    try:
-        # 调用扣子 API 获取用户信息
-        user_info = get_coze_user_info(token)
-        return jsonify(user_info), 200
-    except Exception as e:
-        return jsonify({"message": f"获取用户信息失败: {str(e)}"}), 500
-
-
-@app.route("/devices")
-@log_request_response
-def devices():
-    return render_template("devices.html", client_id=CONNECTOR_PKCE_CLIENT_ID)
-
-
-# 通过调用扣子接口, 将设备 id 同步到扣子, 用户可以在发布页面点击配置选择对应的设备 id
-@app.route("/sync_device", methods=["POST"])
-@log_request_response
-def sync_device():
-    data = request.get_json()
-    if not data or "device_id" not in data or "device_name" not in data:
-        return jsonify({"message": "缺少必要参数"}), 400
-
-    device_id = data["device_id"]
-    device_name = data["device_name"]
-
-    # 从 cookie 中获取 token
-    token = request.cookies.get("coze_pkce_access_token")
-    if not token:
-        return jsonify({"message": "未登录"}), 401
-
-    try:
-        # 调用扣子 API 同步设备信息
-        update_coze_device(CONNECTOR_ID, token, device_id, device_name)
-        return jsonify({"message": "设备同步成功"}), 200
-    except Exception as e:
-        return jsonify({"message": f"同步设备失败: {str(e)}"}), 500
-
-
+# 主入口
 if __name__ == "__main__":
     app.run(debug=True)

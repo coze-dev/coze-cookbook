@@ -3,4 +3,5 @@
 .DS_Store
 a.py
 
+bots.json
 coze_oauth_config.json
