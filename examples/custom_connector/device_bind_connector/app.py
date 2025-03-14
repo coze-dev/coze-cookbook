@@ -34,7 +34,7 @@ app.token_store = {}
 
 # 配置日志
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -79,21 +79,16 @@ def log_request_response(f):
         req_data = {
             "method": request.method,
             "url": request.url,
-            "headers": dict(request.headers),
             "args": dict(request.args),
             "form": dict(request.form),
             "json": request.get_json(silent=True),
         }
-        logger.debug(f"Request: {json.dumps(req_data, ensure_ascii=False)}")
+        logger.info(f"Request: {json.dumps(req_data, ensure_ascii=False)}")
 
         # 执行原始函数
         response = f(*args, **kwargs)
 
         # 记录响应信息
-        # if isinstance(response, Response):
-        #     code = response.status_code if isinstance(response, Response) else 200
-        #     data = response.get_json() if isinstance(response, Response) else response
-        #     logger.debug(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
         if (
             isinstance(response, tuple)
             and len(response) == 2
@@ -103,7 +98,7 @@ def log_request_response(f):
             # 如果 response 是 (Response, int) 的 tuple 类型
             code = response[1]
             data = response[0].get_json()
-            logger.debug(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
+            logger.info(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
 
         return response
 

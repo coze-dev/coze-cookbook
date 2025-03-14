@@ -33,7 +33,7 @@ app.token_store = {}
 
 # 配置日志
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -75,22 +75,17 @@ def log_request_response(f):
         req_data = {
             "method": request.method,
             "url": request.url,
-            "headers": dict(request.headers),
             "args": dict(request.args),
             "form": dict(request.form),
             "json": request.get_json(silent=True),
         }
-        logger.debug(f"Request: {json.dumps(req_data, ensure_ascii=False)}")
+        logger.info(f"Request: {json.dumps(req_data, ensure_ascii=False)}")
 
         # 执行原始函数
         response = f(*args, **kwargs)
 
         # 记录响应信息
-        if isinstance(response, (Response, str)):
-            code = response.status_code if isinstance(response, Response) else 200
-            data = response.get_json() if isinstance(response, Response) else response
-            logger.debug(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
-        elif (
+        if (
             isinstance(response, tuple)
             and len(response) == 2
             and isinstance(response[0], Response)
@@ -99,7 +94,7 @@ def log_request_response(f):
             # 如果 response 是 (Response, int) 的 tuple 类型
             code = response[1]
             data = response[0].get_json()
-            logger.debug(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
+            logger.info(f"Response: {code}, {json.dumps(data, ensure_ascii=False)}")
 
         return response
 
@@ -343,39 +338,6 @@ def coze_callback():
 
     save_bot(bot_id, bot_name)
     return jsonify({"audit": {"audit_status": 2, "reason": ""}}), 200
-
-
-# 通过调用扣子接口, 将设备 id 同步到扣子, 用户可以在发布页面点击配置选择对应的设备 id
-@app.route("/sync_device", methods=["POST"])
-@log_request_response
-def sync_device():
-    data = request.get_json()
-    if not data or "device_id" not in data or "device_name" not in data:
-        return jsonify({"message": "缺少必要参数"}), 400
-
-    # device_id = data["device_id"]
-    # device_name = data["device_name"]
-
-    try:
-        # 调用扣子 API 同步设备信息
-        # response = connector_coze.connectors.update_user_configs(
-        #     configs=[
-        #         {
-        #             "key": "device_id",
-        #             "enums": [{"value": device_id, "label": device_name}],
-        #         }
-        #     ]
-        # )
-        return jsonify({"message": "设备同步成功"}), 200
-    except Exception as e:
-        logger.error(f"同步设备失败: {str(e)}")
-        return jsonify({"message": f"同步设备失败: {str(e)}"}), 500
-
-
-@app.route("/devices")
-@log_request_response
-def devices():
-    return render_template("devices.html")
 
 
 # 主入口
